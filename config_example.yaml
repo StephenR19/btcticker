@@ -3,13 +3,13 @@ display:
   inverted: false # true for black text on grey, false for grey text
   orientation: 90 # 90 for horizontal display, buttons on left
   trendingmode: false # Add trending coins to those being displayed
-  showvolume: false # Show volume (in fiat currency)
-  showrank: false # Show ranking (by volume)
+  showvolume: true # Show volume (in fiat currency)
+  showrank: true # Show ranking (by volume)
   24h: true # true for 24h clock, false for 12h
-  locale: en_US # For region specific changes to price formatting
+  locale: en_GB # For region specific changes to price formatting
 ticker:
-  currency: bitcoin,ethereum,cardano # symbols used on coingecko
+  currency:bitcoin,ethereum,cardano,polkadot,cosmos,solana,chia,chainlink,matic-network,avalanche-2,quant-network,alkimi,constellation-labs,dimo,helium,aave,lattice-token,curve-dao-token,enjincoin,uniswap,the-graph,zelcash,fantom,thorchain,the-sandbox,arweave,axelar,livepeer,mapmetrics,algorand,planetwatch,siaprime-coin,banano,derace # symbols used on coingecko
   exchange: default # specific exchanges can be specified
-  fiatcurrency: usd,eur,gbp # fiat currency, only 1 needed unless you use buttons 
+  fiatcurrency: gbp,usd # fiat currency, only 1 needed unless you use buttons 
   sparklinedays: 1 # Time period shown on sparkline graph
-  updatefrequency: 300 # How often price is refreshed (seconds) (lower limit 60s)
+  updatefrequency: 60 # How often price is refreshed (seconds) (lower limit 60s)
