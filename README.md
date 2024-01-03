@@ -1,9 +1,11 @@
 [![YouTube Channel Views](https://img.shields.io/youtube/channel/views/UCz5BOU9J9pB_O0B8-rDjCWQ?label=YouTube&style=social)](https://www.youtube.com/channel/UCz5BOU9J9pB_O0B8-rDjCWQ)
 
-# Cryptocurrency ePaper Ticker 
-(supports all coins/currencies listed on [CoinGecko](https://api.coingecko.com/api/v3/coins/list))
+[![Instagram](https://img.shields.io/badge/Instagram-E4405F?style=for-the-badge&logo=instagram&logoColor=white)](https://www.instagram.com/v_e_e_b/)
 
-An ePaper Cryptocurrency price ticker that runs as a Python script on a Raspberry Pi connected to a [Waveshare 2.7 inch monochrome ePaper display](https://www.waveshare.com/wiki/2.7inch_e-Paper_HAT). The script periodically (every 5 mins by default) takes data from CoinGecko and prints a summary to the ePaper.
+# Cryptocurrency ePaper Ticker 
+(supports all coins/currencies/exchanges listed on [CoinGecko](https://api.coingecko.com/api/v3/coins/list))
+
+An ePaper Cryptocurrency price ticker that runs as a Python script on a Raspberry Pi connected to a [Waveshare 2.7 inch monochrome ePaper display](https://www.waveshare.com/wiki/2.7inch_e-Paper_HAT). The script periodically (every 5 mins by default) takes data from CoinGecko and prints a summary to the ePaper. You can specify the exchange used for price info, as well as the currencies that your chosen coin's prices are in. 
 
 A few minutes work gives you a desk ornament that will tastefully and unobtrusively monitor a coin's journey moonward.
 
@@ -22,7 +24,7 @@ Connect to your ticker over ssh and update and install necessary packages
 ```
 sudo apt-get update
 sudo apt-get install -y python3-pip mc git libopenjp2-7
-sudo apt-get install -y libatlas-base-dev python3-pil
+sudo apt-get install -y libatlas-base-dev python3-pil python-numpy python-matplotlib
 ```
 
 Enable spi (0=on 1=off)
@@ -42,8 +44,8 @@ Move to the `btcticker` directory, copy the example config to `config.yaml` and 
 ```
 cd btcticker
 cp config_example.yaml config.yaml
-cp -r /home/pi/e-Paper/RaspberryPi_JetsonNano/python/lib/waveshare_epd .
-rm -rf /home/pi/e-Paper
+cp -r ~/e-Paper/RaspberryPi_JetsonNano/python/lib/waveshare_epd .
+rm -rf ~/e-Paper
 ```
 Install the required Python3 modules
 ```
@@ -70,7 +72,7 @@ User=pi
 WantedBy=multi-user.target
 EOF
 ```
-Now, simply enable the service you just made and reboot
+Note that this assumes your user is '**pi**'.  If it isn't, change accordingly. Now, simply enable the service you just made and reboot
 ```  
 sudo systemctl enable btcticker.service
 sudo systemctl start btcticker.service
@@ -98,6 +100,7 @@ The file `config.yaml` (the copy of `config_example.yaml` you made earlier) cont
 ```
 display:
   cycle: true # Setting to true makes the ticker cycle through a list of coins
+  cyclefiat: true # Setting to true makes fiat cycle too, so you can do multiple pairs
   inverted: false # true for black text on grey, false for grey text
   orientation: 90 # 90 for horizontal display, buttons on left
   trendingmode: false # Add trending coins to those being displayed
@@ -108,7 +111,7 @@ display:
 ticker:
   currency: bitcoin,ethereum,cardano # symbols used on coingecko
   exchange: default # specific exchanges can be specified
-  fiatcurrency: usd,eur,gbp # fiat currency, only 1 needed unless you use buttons 
+  fiatcurrency: usd,btc,gbp # 'fiat' currency
   sparklinedays: 1 # Time period shown on sparkline graph
   updatefrequency: 300 # How often price is refreshed (seconds) (lower limit 60s)
 ```
@@ -116,13 +119,14 @@ ticker:
 ## Values
 
 - **cycle**: switch the display between the listed currencies if set to **true**, display only the first on the list if set to **false**
+- **cyclefiat**: cycle listed fiat currencies, display only the first on the list if set to **false**
 - **inverted**: Black text on grey background if **false**. Grey text on black background if **true**
 - **orientation**: Screen rotation in degrees , can take values **0,90,180,270**
 - **trendingmode**: If **true**, it checks the 7 coins that coingecko lists as trending and also displays them (names are included in display)
 - **showvolume, showrank**: **true** to include in display, **false** to omit
 - **currency**: the coin(s) you would like to display (must be the coingecko id)
 - **exchange**: default means use coingecko price, it can also be set to a specific exchange name such as **gdax** (coinbase), **binance** or **kraken** (full list on coingecko api [page](https://www.coingecko.com/api/documentations/v3)) 
-- **fiatcurrency**: currently only uses first one (unless you are cycling with buttons)
+- **fiatcurrency**: if **cyclefiat** is set to **True**, it will also cycle, otherwise it will use only the first entry (and cycle with button presses)
 - **sparklinedays**: Number of days of historical data appearing on chart
 - **updatefrequency**: (in seconds), how often to refresh the display
 

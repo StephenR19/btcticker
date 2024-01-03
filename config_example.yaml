@@ -1,5 +1,6 @@
 display:
   cycle: true # Setting to true makes the ticker cycle through a list of coins
+  cyclefiat: true # Setting to true makes fiat cycle too, so you can do multiple pairs
   inverted: false # true for black text on grey, false for grey text
   orientation: 90 # 90 for horizontal display, buttons on left
   trendingmode: false # Add trending coins to those being displayed
@@ -10,6 +11,6 @@ display:
 ticker:
   currency:bitcoin,ethereum,cardano,polkadot,cosmos,solana,chia,chainlink,matic-network,avalanche-2,quant-network,alkimi,constellation-labs,dimo,helium,aave,lattice-token,curve-dao-token,enjincoin,uniswap,the-graph,zelcash,fantom,thorchain,the-sandbox,arweave,axelar,livepeer,mapmetrics,algorand,planetwatch,siaprime-coin,banano,derace # symbols used on coingecko
   exchange: default # specific exchanges can be specified
-  fiatcurrency: gbp,usd # fiat currency, only 1 needed unless you use buttons 
+  fiatcurrency: usd,btc,gbp # 'fiat' currency
   sparklinedays: 1 # Time period shown on sparkline graph
   updatefrequency: 60 # How often price is refreshed (seconds) (lower limit 60s)

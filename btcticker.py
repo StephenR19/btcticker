@@ -1,4 +1,26 @@
 #!/usr/bin/python3
+
+"""
+  main.py - a script for a cryptocurrency ticker.
+    
+     Copyright (C) 2023 Veeb Projects https://veeb.ch
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>
+
+"""
+
+
 from babel.numbers import decimal, format_currency, format_scientific
 from babel import Locale
 import argparse
@@ -15,6 +37,7 @@ import sys
 import logging
 import RPi.GPIO as GPIO
 from waveshare_epd import epd2in7
+# from waveshare_epd import epd2in7_V2 as epd2in7 #(comment out line above and uncomment this line if you're using v2)
 import time
 import requests
 import urllib
@@ -76,8 +99,9 @@ def _place_text(img, text, x_offset=0, y_offset=0, fontsize=40, fontstring="Foru
         font = ImageFont.truetype(
             '/usr/share/fonts/TTF/DejaVuSans.ttf', fontsize)
     img_width, img_height = img.size
-    text_width, _ = font.getsize(text)
-    text_height = fontsize
+    text_width = font.getbbox(text)[2]
+    text_height = font.getbbox(text)[3]
+    
     draw_x = (img_width - text_width)//2 + x_offset
     draw_y = (img_height - text_height)//2 + y_offset
     draw.text((draw_x, draw_y), text, font=font, fill=fill)
@@ -118,8 +142,11 @@ def getData(config, other):
     starttime = endtime - 60*60*24*days_ago
     starttimeseconds = starttime
     endtimeseconds = endtime
+    fiathistory = fiat
+    if fiat == 'usdt':
+        fiathistory = 'usd'
     geckourlhistorical = "https://api.coingecko.com/api/v3/coins/"+whichcoin + \
-        "/market_chart/range?vs_currency="+fiat+"&from=" + \
+        "/market_chart/range?vs_currency="+fiathistory+"&from=" + \
         str(starttimeseconds)+"&to="+str(endtimeseconds)
     logging.debug(geckourlhistorical)
     timeseriesstack = []
@@ -261,9 +288,9 @@ def custom_format_currency(value, currency, locale):
 
 def updateDisplay(config, pricestack, other):
     """
-    Takes the price data, the desired coin/fiat combo along with the config info for formatting
-    if config is re-written following adustment we could avoid passing the last two arguments as
-    they will just be the first two items of their string in config
+        Takes the price data, the desired coin/fiat combo along with the config info for formatting
+        if config is re-written following adustment we could avoid passing the last two arguments as
+        they will just be the first two items of their string in config
     """
     with open(configfile) as f:
         originalconfig = yaml.load(f, Loader=yaml.FullLoader)
@@ -292,7 +319,7 @@ def updateDisplay(config, pricestack, other):
         tokenimage = Image.open(requests.get(
             rawimage['image']['large'], headers=headers, stream=True).raw).convert("RGBA")
         resize = 100, 100
-        tokenimage.thumbnail(resize, Image.ANTIALIAS)
+        tokenimage.thumbnail(resize, Image.BICUBIC)
         # If inverted is true, invert the token symbol before placing if on the white BG so that it is uninverted at the end - this will make things more
         # legible on a black display
         if config['display']['inverted'] == True:
@@ -303,7 +330,7 @@ def updateDisplay(config, pricestack, other):
         new_image = Image.new("RGBA", (120, 120), "WHITE")
         new_image.paste(tokenimage, (10, 10), tokenimage)
         tokenimage = new_image
-        tokenimage.thumbnail((100, 100), Image.ANTIALIAS)
+        tokenimage.thumbnail((100, 100), Image.BICUBIC)
         tokenimage.save(tokenfilename)
     pricechangeraw = round(
         (pricestack[-1]-pricestack[0])/pricestack[-1]*100, 2)
@@ -322,17 +349,22 @@ def updateDisplay(config, pricestack, other):
         # This is a way of forcing the locale currency info eg 'de_DE' for German formatting
         localetag = 'en_US'
     fontreduce = 0  # This is an adjustment that needs to be applied to coins with very low fiat value per coin
+    fiatupper = fiat.upper()
+    if fiat.upper()=='USDT':
+        fiatupper = 'USD'
+    if fiat.upper() == "BTC":
+        fiatupper = '₿'
     if pricenow > 10000:
         # round to nearest whole unit of currency, this is an ugly hack for now
         pricestring = custom_format_currency(
-            int(pricenow), fiat.upper(), localetag)
+            int(pricenow), fiatupper, localetag)
     elif pricenow > .01:
         pricestring = format_currency(
-            pricenow, fiat.upper(), locale=localetag, decimal_quantization=False)
+            pricenow, fiatupper, locale=localetag, decimal_quantization=False)
     else:
         # looks like you have a coin with a tiny value per coin, drop the font size, not ideal but better than just printing SHITCOIN
         pricestring = format_currency(
-            pricenow, fiat.upper(), locale=localetag, decimal_quantization=False)
+            pricenow, fiatupper, locale=localetag, decimal_quantization=False)
     if len(pricestring) > 9:
         fontreduce = 15
 
@@ -343,7 +375,7 @@ def updateDisplay(config, pricestack, other):
         draw.text((110, 80), str(days_ago)+"day :", font=font_date, fill=0)
         draw.text((110, 95), pricechange, font=font_date, fill=0)
         writewrappedlines(image, pricestring, 40 - fontreduce,
-                          65, 8, 15, "Roboto-Medium")
+                          65, 8, 15, "IBMPlexSans-Medium")
         draw.text((10, 10), timestamp, font=font_date, fill=0)
         image.paste(tokenimage, (10, 25))
         image.paste(sparkbitmap, (10, 125))
@@ -361,7 +393,7 @@ def updateDisplay(config, pricestack, other):
             draw.text((110, 105), "24h vol : " +
                       human_format(other['volume']), font=font_date, fill=0)
         writewrappedlines(image, pricestring, 50-fontreduce,
-                          55, 8, 15, "Roboto-Medium")
+                          50, 8, 15, "IBMPlexSans-Medium")
         image.paste(sparkbitmap, (80, 40))
         image.paste(tokenimage, (0, 10))
         # Don't show rank for #1 coin, #1 doesn't need to show off
@@ -372,6 +404,8 @@ def updateDisplay(config, pricestack, other):
             draw.text((95, 28), whichcoin, font=font_date, fill=0)
 #       draw.text((5,110),"In retrospect, it was inevitable",font =font_date,fill = 0)
         draw.text((95, 15), timestamp, font=font_date, fill=0)
+        if config['ticker']['exchange'] != 'default':
+            draw.text((95,30), config['ticker']['exchange'], font=font_date, fill=0)
         if config['display']['orientation'] == 270:
             image = image.rotate(180, expand=True)
 #       This is a hack to deal with the mirroring that goes on in older waveshare libraries Uncomment line below if needed
@@ -399,6 +433,7 @@ def currencycycle(curr_string):
 
 def display_image(img):
     epd = epd2in7.EPD()
+    # Also change to V2 if using a V2 screen
     epd.Init_4Gray()
     epd.display_4Gray(epd.getbuffer_4Gray(img))
     epd.sleep()
@@ -504,9 +539,9 @@ def configwrite(config):
 
 def fullupdate(config, lastcoinfetch):
     """
-    The steps required for a full update of the display
-    Earlier versions of the code didn't grab new data for some operations
-    but the e-Paper is too slow to bother the coingecko API
+        The steps required for a full update of the display
+        Earlier versions of the code didn't grab new data for some operations
+        but the e-Paper is too slow to bother the coingecko API
     """
     other = {}
     try:
@@ -601,7 +636,10 @@ def main():
             if (time.time() - lastcoinfetch > updatefrequency) or (datapulled == False):
                 if config['display']['cycle'] == True and (datapulled == True):
                     crypto_list = currencycycle(config['ticker']['currency'])
+                    fiat_list = currencycycle(config['ticker']['fiatcurrency'])
                     config['ticker']['currency'] = ",".join(crypto_list)
+                    if 'cyclefiat' in config['display'] and (config['display']['cyclefiat'] is True):
+                        config['ticker']['fiatcurrency'] = ",".join(fiat_list)
                     # configwrite(config)
                 lastcoinfetch = fullupdate(config, lastcoinfetch)
                 datapulled = True
