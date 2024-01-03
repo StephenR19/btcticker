@@ -223,6 +223,9 @@ def beanaproblem(message):
 
 
 def makeSpark(pricestack):
+    # Check if pricestack is empty
+    if len(pricestack) == 0:
+        return
     # Draw and save the sparkline that represents historical data
     # Subtract the mean from the sparkline to make the mean appear on the plot (it's really the x axis)
     themean = sum(pricestack)/float(len(pricestack))
