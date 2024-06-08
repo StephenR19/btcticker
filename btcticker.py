@@ -174,23 +174,26 @@ def getData(config, other):
             if connectfail == True:
                 pass
             else:
-                logging.debug(rawlivecoin[0])
-                liveprice = rawlivecoin[0]
-                pricenow = float(liveprice['current_price'])
-                alltimehigh = float(liveprice['ath'])
-                # Quick workaround for error being thrown for obscure coins. TO DO: Examine further
-                try:
-                    other['market_cap_rank'] = int(
-                        liveprice['market_cap_rank'])
-                except:
-                    config['display']['showrank'] = False
-                    other['market_cap_rank'] = 0
-                other['volume'] = float(liveprice['total_volume'])
-                timeseriesstack.append(pricenow)
-                if pricenow > alltimehigh:
-                    other['ATH'] = True
+                if rawlivecoin:  # Check if rawlivecoin is not empty
+                    logging.debug(rawlivecoin[0])
+                    liveprice = rawlivecoin[0]
+                    pricenow = float(liveprice['current_price'])
+                    alltimehigh = float(liveprice['ath'])
+                    # Quick workaround for error being thrown for obscure coins. TO DO: Examine further
+                    try:
+                        other['market_cap_rank'] = int(liveprice['market_cap_rank'])
+                    except:
+                        config['display']['showrank'] = False
+                        other['market_cap_rank'] = 0
+                    other['volume'] = float(liveprice['total_volume'])
+                    timeseriesstack.append(pricenow)
+                    if pricenow > alltimehigh:
+                        other['ATH'] = True
+                    else:
+                        other['ATH'] = False
                 else:
-                    other['ATH'] = False
+                    logging.error("No data received from CoinGecko for " + whichcoin)
+                    # Handle the case where rawlivecoin is empty
         else:
             geckourl = "https://api.coingecko.com/api/v3/exchanges/" + \
                 config['ticker']['exchange']+"/tickers?coin_ids=" + \
