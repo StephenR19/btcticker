@@ -1,22 +1,21 @@
-[![YouTube Channel Views](https://img.shields.io/youtube/channel/views/UCz5BOU9J9pB_O0B8-rDjCWQ?label=YouTube&style=social)](https://www.youtube.com/channel/UCz5BOU9J9pB_O0B8-rDjCWQ)
+![Action Shot](/images/actionshot/BasicLunar.jpg)
 
-[![Instagram](https://img.shields.io/badge/Instagram-E4405F?style=for-the-badge&logo=instagram&logoColor=white)](https://www.instagram.com/v_e_e_b/)
+[![YouTube Channel Views](https://img.shields.io/youtube/channel/views/UCz5BOU9J9pB_O0B8-rDjCWQ?style=flat&logo=youtube&logoColor=red&labelColor=white&color=ffed53)](https://www.youtube.com/channel/UCz5BOU9J9pB_O0B8-rDjCWQ) [![Instagram](https://img.shields.io/github/stars/veebch?style=flat&logo=github&logoColor=black&labelColor=white&color=ffed53)](https://www.instagram.com/v_e_e_b/)
 
 # Cryptocurrency ePaper Ticker 
-(supports all coins/currencies/exchanges listed on [CoinGecko](https://api.coingecko.com/api/v3/coins/list))
 
 An ePaper Cryptocurrency price ticker that runs as a Python script on a Raspberry Pi connected to a [Waveshare 2.7 inch monochrome ePaper display](https://www.waveshare.com/wiki/2.7inch_e-Paper_HAT). The script periodically (every 5 mins by default) takes data from CoinGecko and prints a summary to the ePaper. You can specify the exchange used for price info, as well as the currencies that your chosen coin's prices are in. 
 
 A few minutes work gives you a desk ornament that will tastefully and unobtrusively monitor a coin's journey moonward.
 
-![Action Shot](/images/actionshot/BasicLunar.jpg)
-
+(supports all coins/currencies/exchanges listed on [CoinGecko](https://api.coingecko.com/api/v3/coins/list))
 
 # Getting started
 
 ## Prerequisites
 
-(These instructions assume that your Raspberry Pi is already connected to the Internet, happily running `pip` and has `python3` installed)
+(These instructions assume that your Raspberry Pi is already connected to the Internet, happily running `pip` and has `python3` installed). 
+It also is set up to work for the V1 Waveshare 2.7in ePaper. If you are using V2 then see the note in btcticker.py about switching to V2.
 
 If you are running the Pi headless, connect to your Raspberry Pi using `ssh`.
 
@@ -24,7 +23,7 @@ Connect to your ticker over ssh and update and install necessary packages
 ```
 sudo apt-get update
 sudo apt-get install -y python3-pip mc git libopenjp2-7
-sudo apt-get install -y libatlas-base-dev python3-pil python-numpy python-matplotlib
+sudo apt-get install -y libatlas-base-dev python3-pil python3-numpy python3-matplotlib
 ```
 
 Enable spi (0=on 1=off)
@@ -72,7 +71,7 @@ User=pi
 WantedBy=multi-user.target
 EOF
 ```
-Note that this assumes your user is '**pi**'.  If it isn't, change accordingly. Now, simply enable the service you just made and reboot
+Note that this assumes your user is '**pi**'.  If it isn't, change all occurences of pi to your user name . Now, simply enable the service you just made and reboot
 ```  
 sudo systemctl enable btcticker.service
 sudo systemctl start btcticker.service
