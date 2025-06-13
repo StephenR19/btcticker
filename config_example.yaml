@@ -9,6 +9,7 @@ display:
   24h: true # true for 24h clock, false for 12h
   locale: en_GB # For region specific changes to price formatting
 ticker:
+  api_key: "YOUR_API_KEY_HERE"
   currency:bitcoin,ethereum,cardano,polkadot,cosmos,solana,chia,chainlink,matic-network,avalanche-2,quant-network,alkimi,constellation-labs,dimo,helium,aave,lattice-token,curve-dao-token,enjincoin,uniswap,the-graph,zelcash,fantom,thorchain,the-sandbox,arweave,axelar,livepeer,mapmetrics,algorand,planetwatch,siaprime-coin,banano,derace # symbols used on coingecko
   exchange: default # specific exchanges can be specified
   fiatcurrency: usd,btc,gbp # 'fiat' currency
