@@ -29,7 +29,7 @@ import currency
 import os
 import sys
 import logging
-import RPi.GPIO as GPIO
+import lgpio
 from waveshare_epd import epd2in7
 # from waveshare_epd import epd2in7_V2 as epd2in7 #(comment out line above and uncomment this line if you're using v2). 
 # Also check https://github.com/waveshareteam/e-Paper/issues/322 to see whether waveshare have fixed the V2 bug
@@ -495,44 +495,42 @@ def display_image(img):
     epd.Init_4Gray()
     epd.display_4Gray(epd.getbuffer_4Gray(img))
     epd.sleep()
-    thekeys = initkeys()
     #   Have to remove and add key events to make them work again
-    removekeyevent(thekeys)
-    addkeyevent(thekeys)
+    removekeyevent(GPIO_KEYS)
+    addkeyevent(GPIO_KEYS)
     logging.info("Sent image to screen")
     return
 
 def initkeys():
-    key1 = 5
-    key2 = 6
-    key3 = 13
-    key4 = 19
+    global gpio_handle
     logging.debug("Setup GPIO keys")
-    GPIO.setmode(GPIO.BCM)
-    GPIO.setup(key1, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-    GPIO.setup(key2, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-    GPIO.setup(key3, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-    GPIO.setup(key4, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-    thekeys = [key1, key2, key3, key4]
-    return thekeys
+    gpio_handle = lgpio.gpiochip_open(0)
+    for pin in GPIO_KEYS:
+        lgpio.gpio_claim_input(gpio_handle, pin, lgpio.SET_PULL_UP)
+    return GPIO_KEYS
+
+def gpio_callback_wrapper(chip, gpio, level, tick):
+    global last_button_time
+    now = time.time()
+    if now - last_button_time < 0.5:
+        return
+    last_button_time = now
+    keypress(gpio)
 
 def addkeyevent(thekeys):
-    #   Add keypress events
+    global gpio_handle, gpio_callbacks
     logging.debug("Add key events")
-    btime = 500
-    GPIO.add_event_detect(thekeys[0], GPIO.FALLING, callback=keypress, bouncetime=btime)
-    GPIO.add_event_detect(thekeys[1], GPIO.FALLING, callback=keypress, bouncetime=btime)
-    GPIO.add_event_detect(thekeys[2], GPIO.FALLING, callback=keypress, bouncetime=btime)
-    GPIO.add_event_detect(thekeys[3], GPIO.FALLING, callback=keypress, bouncetime=btime)
+    for pin in thekeys:
+        cb = lgpio.callback(gpio_handle, pin, lgpio.FALLING_EDGE, gpio_callback_wrapper)
+        gpio_callbacks.append(cb)
     return
 
 def removekeyevent(thekeys):
-    #   Remove keypress events
+    global gpio_callbacks
     logging.debug("Remove key events")
-    GPIO.remove_event_detect(thekeys[0])
-    GPIO.remove_event_detect(thekeys[1])
-    GPIO.remove_event_detect(thekeys[2])
-    GPIO.remove_event_detect(thekeys[3])
+    for cb in gpio_callbacks:
+        cb.cancel()
+    gpio_callbacks = []
     return
 
 def keypress(channel):
@@ -582,7 +580,11 @@ def configwrite(config):
         data = yaml.dump(config, f)
     #   Reset button pressed state after config is written
     global button_pressed
-    button_pressed = 0
+button_pressed = 0
+last_button_time = 0
+gpio_handle = None
+gpio_callbacks = []
+GPIO_KEYS = [5, 6, 13, 19]
 
 def fullupdate(config, lastcoinfetch):
     """
@@ -640,7 +642,6 @@ def gettrending(config):
     return config
 
 def main():
-    GPIO.setmode(GPIO.BCM)
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--log", default="info", help="Set the log level (default: info)"
@@ -715,7 +716,14 @@ def main():
         image = beanaproblem("Keyboard Interrupt")
         display_image(image)
         epd2in7.epdconfig.module_exit()
-        GPIO.cleanup()
+        global gpio_handle, gpio_callbacks
+        for cb in gpio_callbacks:
+            cb.cancel()
+        gpio_callbacks = []
+        if gpio_handle:
+            for pin in GPIO_KEYS:
+                lgpio.gpio_free(gpio_handle, pin)
+            lgpio.gpiochip_close(gpio_handle)
         exit()
 
 if __name__ == "__main__":

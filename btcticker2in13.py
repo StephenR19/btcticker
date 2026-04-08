@@ -6,7 +6,7 @@ import currency
 import os
 import sys
 import logging
-import RPi.GPIO as GPIO
+import lgpio
 from waveshare_epd import epd2in13_V2
 import time
 import requests
@@ -24,6 +24,10 @@ fonthiddenprice = ImageFont.truetype(os.path.join(fontdir,'Roboto-Medium.ttf'), 
 font = ImageFont.truetype(os.path.join(fontdir,'Roboto-Medium.ttf'), 40)
 fontHorizontal = ImageFont.truetype(os.path.join(fontdir,'Roboto-Medium.ttf'), 16)
 font_date = ImageFont.truetype(os.path.join(fontdir,'PixelSplitter-Bold.ttf'),11)
+
+gpio_handle = None
+gpio_callbacks = []
+last_button_time = 0
 
 def internet(host="8.8.8.8", port=53, timeout=3):
     """
@@ -169,11 +173,11 @@ def updateDisplay(config,pricestack,whichcoin,fiat,other):
         rawimage = requests.get(tokenimageurl).json()
         tokenimage = Image.open(requests.get(rawimage['image']['large'], stream=True).raw)
         resize = 100,100
-        tokenimage.thumbnail(resize, Image.ANTIALIAS)
+        tokenimage.thumbnail(resize, Image.Resampling.LANCZOS)
         new_image = Image.new("RGBA", (120,120), "WHITE") # Create a white rgba background with a 10 pixel border
         new_image.paste(tokenimage, (10, 10), tokenimage)   
         tokenimage=new_image
-        tokenimage.thumbnail((100,100),Image.ANTIALIAS)
+        tokenimage.thumbnail((100,100),Image.Resampling.LANCZOS)
         tokenimage.save(tokenfilename)
 
 
@@ -295,52 +299,78 @@ def main():
         logging.info(CURRENCY)
         logging.info(FIAT)
 
-        GPIO.setmode(GPIO.BCM)
+        global gpio_handle, gpio_callbacks, last_button_time
         key1 = 5
         key2 = 6
         key3 = 13
         key4 = 19
 
+        gpio_handle = lgpio.gpiochip_open(0)
+        lgpio.gpio_claim_input(gpio_handle, key1, lgpio.SET_PULL_UP)
+        lgpio.gpio_claim_input(gpio_handle, key2, lgpio.SET_PULL_UP)
+        lgpio.gpio_claim_input(gpio_handle, key3, lgpio.SET_PULL_UP)
+        lgpio.gpio_claim_input(gpio_handle, key4, lgpio.SET_PULL_UP)
 
-        GPIO.setup(key1, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        GPIO.setup(key2, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        GPIO.setup(key3, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        GPIO.setup(key4, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        def key1_callback(chip, gpio, level, tick):
+            global last_button_time
+            now = time.time()
+            if now - last_button_time < 0.5:
+                return
+            last_button_time = now
+            logging.info('Cycle currencies')
+            crypto_list = currencycycle(crypto_list)
+            CURRENCY=crypto_list[0]
+            logging.info(CURRENCY)
+            fullupdate()
+
+        def key2_callback(chip, gpio, level, tick):
+            global last_button_time
+            now = time.time()
+            if now - last_button_time < 0.5:
+                return
+            last_button_time = now
+            logging.info('Rotate - 90')
+            config['display']['orientation'] = (config['display']['orientation']+90) % 360
+            fullupdate()
+
+        def key3_callback(chip, gpio, level, tick):
+            global last_button_time
+            now = time.time()
+            if now - last_button_time < 0.5:
+                return
+            last_button_time = now
+            logging.info('Invert Display')
+            config['display']['inverted'] = not config['display']['inverted']
+            fullupdate()
+
+        def key4_callback(chip, gpio, level, tick):
+            global last_button_time
+            now = time.time()
+            if now - last_button_time < 0.5:
+                return
+            last_button_time = now
+            logging.info('Cycle fiat')
+            fiat_list = currencycycle(fiat_list)
+            FIAT=fiat_list[0]
+            logging.info(FIAT)
+            fullupdate()
+
+        gpio_callbacks = [
+            lgpio.callback(gpio_handle, key1, lgpio.FALLING_EDGE, key1_callback),
+            lgpio.callback(gpio_handle, key2, lgpio.FALLING_EDGE, key2_callback),
+            lgpio.callback(gpio_handle, key3, lgpio.FALLING_EDGE, key3_callback),
+            lgpio.callback(gpio_handle, key4, lgpio.FALLING_EDGE, key4_callback),
+        ]
 
 
 #       Note that there has been no data pull yet
         datapulled=False 
 #       Time of start
         lastcoinfetch = time.time()
-     
+      
         while True:
 
-            key1state = GPIO.input(key1)
-            key2state = GPIO.input(key2)
-            key3state = GPIO.input(key3)
-            key4state = GPIO.input(key4)
-
             if internet():
-                if key1state == False:
-                    logging.info('Cycle currencies')
-                    crypto_list = currencycycle(crypto_list)
-                    CURRENCY=crypto_list[0]
-                    logging.info(CURRENCY)
-                    lastcoinfetch=fullupdate()
-                if key2state == False:
-                    logging.info('Rotate - 90')
-                    config['display']['orientation'] = (config['display']['orientation']+90) % 360
-                    lastcoinfetch=fullupdate()
-                if key3state == False:
-                    logging.info('Invert Display')
-                    config['display']['inverted']= not config['display']['inverted']
-                    lastcoinfetch=fullupdate()
-                if key4state == False:
-                    logging.info('Cycle fiat')
-                    fiat_list = currencycycle(fiat_list)
-                    FIAT=fiat_list[0]
-                    logging.info(FIAT)
-                    lastcoinfetch=fullupdate()
                 if (time.time() - lastcoinfetch > float(config['ticker']['updatefrequency'])) or (datapulled==False):
                     if config['display']['cycle']==True:
                         crypto_list = currencycycle(crypto_list)
@@ -350,6 +380,7 @@ def main():
                     # Moved due to suspicion that button pressing was corrupting config file
                     configwrite()
 
+            time.sleep(0.1)
 
 
     except IOError as e:
@@ -358,7 +389,13 @@ def main():
     except KeyboardInterrupt:    
         logging.info("ctrl + c:")
         epd2in13_V2.epdconfig.module_exit()
-        GPIO.cleanup()
+        global gpio_handle, gpio_callbacks
+        for cb in gpio_callbacks:
+            cb.cancel()
+        if gpio_handle:
+            for pin in [5, 6, 13, 19]:
+                lgpio.gpio_free(gpio_handle, pin)
+            lgpio.gpiochip_close(gpio_handle)
         exit()
 
 if __name__ == '__main__':
