@@ -1,25 +1,19 @@
 #!/usr/bin/python3
-
 """
   main.py - a script for a cryptocurrency ticker.
     
      Copyright (C) 2023 Veeb Projects https://veeb.ch
-
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
-
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>
-
 """
-
 
 from babel.numbers import decimal, format_currency, format_scientific
 from babel import Locale
@@ -37,7 +31,6 @@ import sys
 import logging
 import RPi.GPIO as GPIO
 from waveshare_epd import epd2in7
-
 # from waveshare_epd import epd2in7_V2 as epd2in7 #(comment out line above and uncomment this line if you're using v2). 
 # Also check https://github.com/waveshareteam/e-Paper/issues/322 to see whether waveshare have fixed the V2 bug
 import time
@@ -45,9 +38,7 @@ import requests
 import urllib
 import json
 import matplotlib as mpl
-
 mpl.use("Agg")
-
 dirname = os.path.dirname(__file__)
 picdir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "images")
 fontdir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "fonts/googlefonts")
@@ -57,7 +48,6 @@ headers = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36"
 }
 button_pressed = 0
-
 
 def internet(hostname="google.com"):
     """
@@ -77,7 +67,6 @@ def internet(hostname="google.com"):
         time.sleep(1)
     return False
 
-
 def human_format(num):
     num = float("{:.3g}".format(num))
     magnitude = 0
@@ -87,7 +76,6 @@ def human_format(num):
     return "{}{}".format(
         "{:f}".format(num).rstrip("0").rstrip("."), ["", "K", "M", "B", "T"][magnitude]
     )
-
 
 def _place_text(
     img, text, x_offset=0, y_offset=0, fontsize=40, fontstring="Forum-Regular", fill=0
@@ -112,7 +100,6 @@ def _place_text(
     draw_y = (img_height - text_height) // 2 + y_offset
     draw.text((draw_x, draw_y), text, font=font, fill=fill)
 
-
 def writewrappedlines(
     img, text, fontsize=16, y_text=20, height=15, width=25, fontstring="Roboto-Light"
 ):
@@ -124,23 +111,41 @@ def writewrappedlines(
         numoflines += 1
     return img
 
-
-def getgecko(url):
+def getgecko(url, config):
+    """
+    Makes a GET request to the CoinGecko API, including the API key if available.
+    """
     try:
-        geckojson = requests.get(url, headers=headers).json()
+        # Create a local copy of the global headers to modify
+        local_headers = headers.copy()
+        
+        # Get the API key from the config (safely handles missing keys)
+        api_key = config.get('ticker', {}).get('api_key')
+
+        # If an API key is present and valid, add it to the headers for this request
+        if api_key and 'YOUR_API_KEY_HERE' not in api_key:
+            # Note: Use 'x-cg-pro-api-key' for a paid Pro plan
+            local_headers['x-cg-demo-api-key'] = api_key
+            logging.debug("Using API Key for request.")
+        else:
+            logging.debug("API Key not found or not set in config.yaml. Making an anonymous request.")
+
+        # Make the request using the (potentially updated) local headers
+        response = requests.get(url, headers=local_headers)
+        response.raise_for_status()  # This will raise an HTTPError for bad responses (4xx or 5xx)
+        geckojson = response.json()
         connectfail = False
     except requests.exceptions.RequestException as e:
-        logging.error("Issue with CoinGecko")
+        logging.error(f"Issue with CoinGecko request to {url}: {e}")
         connectfail = True
         geckojson = {}
+        
     return geckojson, connectfail
-
 
 def getData(config, other):
     """
     The function to grab the data (TO DO: need to test properly)
     """
-
     sleep_time = 10
     num_retries = 5
     whichcoin, fiat = configtocoinandfiat(config)
@@ -166,7 +171,7 @@ def getData(config, other):
     logging.debug(geckourlhistorical)
     timeseriesstack = []
     for x in range(0, num_retries):
-        rawtimeseries, connectfail = getgecko(geckourlhistorical)
+        rawtimeseries, connectfail = getgecko(geckourlhistorical, config)
         if connectfail == True:
             pass
         else:
@@ -190,26 +195,30 @@ def getData(config, other):
                 + whichcoin
             )
             logging.debug(geckourl)
-            rawlivecoin, connectfail = getgecko(geckourl)
+            rawlivecoin, connectfail = getgecko(geckourl, config)
             if connectfail == True:
                 pass
             else:
-                logging.debug(rawlivecoin[0])
-                liveprice = rawlivecoin[0]
-                pricenow = float(liveprice["current_price"])
-                alltimehigh = float(liveprice["ath"])
-                # Quick workaround for error being thrown for obscure coins. TO DO: Examine further
-                try:
-                    other["market_cap_rank"] = int(liveprice["market_cap_rank"])
-                except:
-                    config["display"]["showrank"] = False
-                    other["market_cap_rank"] = 0
-                other["volume"] = float(liveprice["total_volume"])
-                timeseriesstack.append(pricenow)
-                if pricenow > alltimehigh:
-                    other["ATH"] = True
+                if rawlivecoin:  # Check if rawlivecoin is not empty
+                    logging.debug(rawlivecoin[0])
+                    liveprice = rawlivecoin[0]
+                    pricenow = float(liveprice['current_price'])
+                    alltimehigh = float(liveprice['ath'])
+                    # Quick workaround for error being thrown for obscure coins. TO DO: Examine further
+                    try:
+                        other['market_cap_rank'] = int(liveprice['market_cap_rank'])
+                    except:
+                        config['display']['showrank'] = False
+                        other['market_cap_rank'] = 0
+                    other['volume'] = float(liveprice['total_volume'])
+                    timeseriesstack.append(pricenow)
+                    if pricenow > alltimehigh:
+                        other['ATH'] = True
+                    else:
+                        other['ATH'] = False
                 else:
-                    other["ATH"] = False
+                    logging.error("No data received from CoinGecko for " + whichcoin)
+                    # Handle the case where rawlivecoin is empty
         else:
             geckourl = (
                 "https://api.coingecko.com/api/v3/exchanges/"
@@ -219,7 +228,7 @@ def getData(config, other):
                 + "&include_exchange_logo=false"
             )
             logging.debug(geckourl)
-            rawlivecoin, connectfail = getgecko(geckourl)
+            rawlivecoin, connectfail = getgecko(geckourl, config)
             if connectfail == True:
                 pass
             else:
@@ -261,7 +270,6 @@ def getData(config, other):
             break
     return timeseriesstack, other
 
-
 def beanaproblem(message):
     #   A visual cue that the wheels have fallen off
     thebean = Image.open(os.path.join(picdir, "thebean.bmp"))
@@ -275,8 +283,10 @@ def beanaproblem(message):
     writewrappedlines(image, "Issue: " + message)
     return image
 
-
 def makeSpark(pricestack):
+    # Check if pricestack is empty
+    if len(pricestack) == 0:
+        return
     # Draw and save the sparkline that represents historical data
     # Subtract the mean from the sparkline to make the mean appear on the plot (it's really the x axis)
     themean = sum(pricestack) / float(len(pricestack))
@@ -301,14 +311,12 @@ def makeSpark(pricestack):
     imgspk.close()
     return
 
-
 def custom_format_currency(value, currency, locale):
     value = decimal.Decimal(value)
     locale = Locale.parse(locale)
     pattern = locale.currency_formats["standard"]
     force_frac = (0, 0) if value == int(value) else None
     return pattern.apply(value, locale, currency=currency, force_frac=force_frac)
-
 
 def updateDisplay(config, pricestack, other):
     """
@@ -342,7 +350,13 @@ def updateDisplay(config, pricestack, other):
             + whichcoin
             + "?tickers=false&market_data=false&community_data=false&developer_data=false&sparkline=false"
         )
-        rawimage = requests.get(tokenimageurl, headers=headers).json()
+        # Use our updated getgecko function here
+        rawimage, connectfail = getgecko(tokenimageurl, config)
+
+        if connectfail or not rawimage:
+            logging.error(f"Could not fetch image details for {whichcoin}. Using a placeholder.")
+            return beanaproblem(f"No image data for {whichcoin}")
+
         tokenimage = Image.open(
             requests.get(rawimage["image"]["large"], headers=headers, stream=True).raw
         ).convert("RGBA")
@@ -395,7 +409,6 @@ def updateDisplay(config, pricestack, other):
         )
     if len(pricestring) > 9:
         fontreduce = 15
-
     if config["display"]["orientation"] == 0 or config["display"]["orientation"] == 180:
         # 255: clear the image with white
         image = Image.new("L", (176, 264), 255)
@@ -464,20 +477,17 @@ def updateDisplay(config, pricestack, other):
     #   Return the ticker image
     return image
 
-
 def currencystringtolist(currstring):
     # Takes the string for currencies in the config.yaml file and turns it into a list
     curr_list = currstring.split(",")
     curr_list = [x.strip(" ") for x in curr_list]
     return curr_list
 
-
 def currencycycle(curr_string):
     curr_list = currencystringtolist(curr_string)
     # Rotate the array of currencies from config.... [a b c] becomes [b c a]
     curr_list = curr_list[1:] + curr_list[:1]
     return curr_list
-
 
 def display_image(img):
     epd = epd2in7.EPD()
@@ -491,7 +501,6 @@ def display_image(img):
     addkeyevent(thekeys)
     logging.info("Sent image to screen")
     return
-
 
 def initkeys():
     key1 = 5
@@ -507,7 +516,6 @@ def initkeys():
     thekeys = [key1, key2, key3, key4]
     return thekeys
 
-
 def addkeyevent(thekeys):
     #   Add keypress events
     logging.debug("Add key events")
@@ -518,7 +526,6 @@ def addkeyevent(thekeys):
     GPIO.add_event_detect(thekeys[3], GPIO.FALLING, callback=keypress, bouncetime=btime)
     return
 
-
 def removekeyevent(thekeys):
     #   Remove keypress events
     logging.debug("Remove key events")
@@ -527,7 +534,6 @@ def removekeyevent(thekeys):
     GPIO.remove_event_detect(thekeys[2])
     GPIO.remove_event_detect(thekeys[3])
     return
-
 
 def keypress(channel):
     global button_pressed
@@ -566,7 +572,6 @@ def keypress(channel):
         return
     return
 
-
 def configwrite(config):
     """
     Write the config file following an adjustment made using the buttons
@@ -578,7 +583,6 @@ def configwrite(config):
     #   Reset button pressed state after config is written
     global button_pressed
     button_pressed = 0
-
 
 def fullupdate(config, lastcoinfetch):
     """
@@ -608,7 +612,6 @@ def fullupdate(config, lastcoinfetch):
         lastgrab = lastcoinfetch
     return lastgrab
 
-
 def configtocoinandfiat(config):
     crypto_list = currencystringtolist(config["ticker"]["currency"])
     fiat_list = currencystringtolist(config["ticker"]["fiatcurrency"])
@@ -616,20 +619,25 @@ def configtocoinandfiat(config):
     fiat = fiat_list[0]
     return currency, fiat
 
-
 def gettrending(config):
     print("ADD TRENDING")
     coinlist = config["ticker"]["currency"]
     url = "https://api.coingecko.com/api/v3/search/trending"
     #   Cycle must be true if trending mode is on
     config["display"]["cycle"] = True
-    trendingcoins = requests.get(url, headers=headers).json()
-    for i in range(0, (len(trendingcoins["coins"]))):
+    
+    # Use our updated function to make the API call
+    trendingcoins, connectfail = getgecko(url, config)
+    
+    if connectfail or not trendingcoins:
+        logging.error("Failed to get trending coins.")
+        return config
+
+    for i in range(0, (len(trendingcoins.get("coins", [])))):
         print(trendingcoins["coins"][i]["item"]["id"])
         coinlist += "," + str(trendingcoins["coins"][i]["item"]["id"])
     config["ticker"]["currency"] = coinlist
     return config
-
 
 def main():
     GPIO.setmode(GPIO.BCM)
@@ -638,7 +646,6 @@ def main():
         "--log", default="info", help="Set the log level (default: info)"
     )
     args = parser.parse_args()
-
     loglevel = getattr(logging, args.log.upper(), logging.WARN)
     logging.basicConfig(level=loglevel)
     # Set timezone based on ip address
@@ -710,7 +717,6 @@ def main():
         epd2in7.epdconfig.module_exit()
         GPIO.cleanup()
         exit()
-
 
 if __name__ == "__main__":
     main()
