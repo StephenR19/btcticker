@@ -579,10 +579,8 @@ def configwrite(config):
     """
     with open(configfile, "w") as f:
         data = yaml.dump(config, f)
-    #   Reset button pressed state after config is written
     global button_pressed
     button_pressed = 0
-last_button_time = 0
 gpio_handle = None
 gpio_callbacks = []
 GPIO_KEYS = [5, 6, 13, 19]
@@ -697,6 +695,7 @@ def main():
                     config["ticker"]["currency"] = staticcoins
                     config = gettrending(config)
             if (time.time() - lastcoinfetch > updatefrequency) or (datapulled == False):
+                logging.debug("Auto-cycle check: elapsed=%d, freq=%d, datapulled=%s", time.time() - lastcoinfetch, updatefrequency, datapulled)
                 if config["display"]["cycle"] == True and (datapulled == True):
                     crypto_list = currencycycle(config["ticker"]["currency"])
                     fiat_list = currencycycle(config["ticker"]["fiatcurrency"])
