@@ -149,7 +149,7 @@ def getData(config, other):
     sleep_time = 10
     num_retries = 5
     whichcoin, fiat = configtocoinandfiat(config)
-    logging.info(f"DEBUG getData: coin={whichcoin}, fiat={fiat}")
+    logging.debug(f"DEBUG getData: coin={whichcoin}, fiat={fiat}")
     logging.info("Getting Data")
     days_ago = int(config["ticker"]["sparklinedays"])
     endtime = int(time.time())
@@ -563,7 +563,7 @@ def keypress(channel):
         button_pressed = 1
         fiat_list = currencycycle(config["ticker"]["fiatcurrency"])
         config["ticker"]["fiatcurrency"] = ",".join(fiat_list)
-        logging.info(f"DEBUG BTN4: crypto={config['ticker']['currency']}, fiat={config['ticker']['fiatcurrency']}")
+        logging.debug(f"DEBUG BTN4: crypto={config['ticker']['currency']}, fiat={config['ticker']['fiatcurrency']}")
         lastcoinfetch = fullupdate(config, lastcoinfetch)
         configwrite(config)
         return
@@ -699,7 +699,7 @@ def main():
                 with open(configfile) as f:
                     config = yaml.load(f, Loader=yaml.FullLoader)
                 if config["display"]["cycle"] == True and (datapulled == True):
-                    logging.info(f"DEBUG AUTO before: crypto={config['ticker']['currency']}, fiat={config['ticker']['fiatcurrency']}")
+                    logging.debug(f"DEBUG AUTO before: crypto={config['ticker']['currency']}, fiat={config['ticker']['fiatcurrency']}")
                     crypto_list = currencycycle(config["ticker"]["currency"])
                     fiat_list = currencycycle(config["ticker"]["fiatcurrency"])
                     config["ticker"]["currency"] = ",".join(crypto_list)
@@ -708,7 +708,7 @@ def main():
                     ):
                         config["ticker"]["fiatcurrency"] = ",".join(fiat_list)
                     configwrite(config)
-                    logging.info(f"DEBUG AUTO after: crypto={config['ticker']['currency']}, fiat={config['ticker']['fiatcurrency']}")
+                    logging.debug(f"DEBUG AUTO after: crypto={config['ticker']['currency']}, fiat={config['ticker']['fiatcurrency']}")
                 lastcoinfetch = fullupdate(config, lastcoinfetch)
                 datapulled = True
             #           Reduces CPU load during that while loop
