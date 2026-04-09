@@ -561,6 +561,7 @@ def keypress(channel):
         button_pressed = 1
         fiat_list = currencycycle(config["ticker"]["fiatcurrency"])
         config["ticker"]["fiatcurrency"] = ",".join(fiat_list)
+        logging.info(f"DEBUG BTN4: crypto={config['ticker']['currency']}, fiat={config['ticker']['fiatcurrency']}")
         lastcoinfetch = fullupdate(config, lastcoinfetch)
         configwrite(config)
         return
