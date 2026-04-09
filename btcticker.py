@@ -322,8 +322,6 @@ def custom_format_currency(value, currency, locale):
 def updateDisplay(config, pricestack, other):
     """
     Takes the price data, the desired coin/fiat combo along with the config info for formatting
-    if config is re-written following adustment we could avoid passing the last two arguments as
-    they will just be the first two items of their string in config
     """
     whichcoin, fiat = configtocoinandfiat(config)
     days_ago = int(config["ticker"]["sparklinedays"])
@@ -531,10 +529,9 @@ def removekeyevent(thekeys):
     return
 
 def keypress(channel):
-    global button_pressed, config
-    if 'config' not in globals():
-        with open(configfile) as f:
-            config = yaml.load(f, Loader=yaml.FullLoader)
+    global button_pressed
+    with open(configfile) as f:
+        config = yaml.load(f, Loader=yaml.FullLoader)
     lastcoinfetch = time.time()
     if channel == 5 and button_pressed == 0:
         logging.info("Cycle currencies")
