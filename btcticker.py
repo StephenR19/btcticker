@@ -324,11 +324,6 @@ def updateDisplay(config, pricestack, other):
     if config is re-written following adustment we could avoid passing the last two arguments as
     they will just be the first two items of their string in config
     """
-    with open(configfile) as f:
-        originalconfig = yaml.load(f, Loader=yaml.FullLoader)
-    originalcoin = originalconfig["ticker"]["currency"]
-    originalcoin_list = originalcoin.split(",")
-    originalcoin_list = [x.strip(" ") for x in originalcoin_list]
     whichcoin, fiat = configtocoinandfiat(config)
     days_ago = int(config["ticker"]["sparklinedays"])
     pricenow = pricestack[-1]
@@ -460,7 +455,7 @@ def updateDisplay(config, pricestack, other):
                 fill=0,
             )
         if (config["display"]["trendingmode"] == True) and not (
-            str(whichcoin) in originalcoin_list
+            whichcoin in config["ticker"]["currency"].split(",")
         ):
             draw.text((95, 28), whichcoin, font=font_date, fill=0)
         #       draw.text((5,110),"In retrospect, it was inevitable",font =font_date,fill = 0)
