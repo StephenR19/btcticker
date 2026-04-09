@@ -29,7 +29,7 @@ import currency
 import os
 import sys
 import logging
-import RPi.GPIO as GPIO
+import lgpio
 from waveshare_epd import epd2in7
 # from waveshare_epd import epd2in7_V2 as epd2in7 #(comment out line above and uncomment this line if you're using v2). 
 # Also check https://github.com/waveshareteam/e-Paper/issues/322 to see whether waveshare have fixed the V2 bug
@@ -149,6 +149,7 @@ def getData(config, other):
     sleep_time = 10
     num_retries = 5
     whichcoin, fiat = configtocoinandfiat(config)
+    logging.debug(f"DEBUG getData: coin={whichcoin}, fiat={fiat}")
     logging.info("Getting Data")
     days_ago = int(config["ticker"]["sparklinedays"])
     endtime = int(time.time())
@@ -321,14 +322,7 @@ def custom_format_currency(value, currency, locale):
 def updateDisplay(config, pricestack, other):
     """
     Takes the price data, the desired coin/fiat combo along with the config info for formatting
-    if config is re-written following adustment we could avoid passing the last two arguments as
-    they will just be the first two items of their string in config
     """
-    with open(configfile) as f:
-        originalconfig = yaml.load(f, Loader=yaml.FullLoader)
-    originalcoin = originalconfig["ticker"]["currency"]
-    originalcoin_list = originalcoin.split(",")
-    originalcoin_list = [x.strip(" ") for x in originalcoin_list]
     whichcoin, fiat = configtocoinandfiat(config)
     days_ago = int(config["ticker"]["sparklinedays"])
     pricenow = pricestack[-1]
@@ -460,7 +454,7 @@ def updateDisplay(config, pricestack, other):
                 fill=0,
             )
         if (config["display"]["trendingmode"] == True) and not (
-            str(whichcoin) in originalcoin_list
+            whichcoin in config["ticker"]["currency"].split(",")
         ):
             draw.text((95, 28), whichcoin, font=font_date, fill=0)
         #       draw.text((5,110),"In retrospect, it was inevitable",font =font_date,fill = 0)
@@ -495,44 +489,43 @@ def display_image(img):
     epd.Init_4Gray()
     epd.display_4Gray(epd.getbuffer_4Gray(img))
     epd.sleep()
-    thekeys = initkeys()
     #   Have to remove and add key events to make them work again
-    removekeyevent(thekeys)
-    addkeyevent(thekeys)
+    removekeyevent(GPIO_KEYS)
+    addkeyevent(GPIO_KEYS)
     logging.info("Sent image to screen")
     return
 
 def initkeys():
-    key1 = 5
-    key2 = 6
-    key3 = 13
-    key4 = 19
+    global gpio_handle
     logging.debug("Setup GPIO keys")
-    GPIO.setmode(GPIO.BCM)
-    GPIO.setup(key1, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-    GPIO.setup(key2, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-    GPIO.setup(key3, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-    GPIO.setup(key4, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-    thekeys = [key1, key2, key3, key4]
-    return thekeys
+    gpio_handle = lgpio.gpiochip_open(0)
+    for pin in GPIO_KEYS:
+        lgpio.gpio_claim_alert(gpio_handle, pin, lgpio.FALLING_EDGE, lgpio.SET_PULL_UP)
+    return GPIO_KEYS
+
+def gpio_callback_wrapper(chip, gpio, level, tick):
+    global last_button_time, pending_button
+    now = time.time()
+    if now - last_button_time < 0.5:
+        return
+    last_button_time = now
+    logging.debug("Button pressed: %d", gpio)
+    pending_button = gpio
 
 def addkeyevent(thekeys):
-    #   Add keypress events
+    global gpio_handle, gpio_callbacks
     logging.debug("Add key events")
-    btime = 500
-    GPIO.add_event_detect(thekeys[0], GPIO.FALLING, callback=keypress, bouncetime=btime)
-    GPIO.add_event_detect(thekeys[1], GPIO.FALLING, callback=keypress, bouncetime=btime)
-    GPIO.add_event_detect(thekeys[2], GPIO.FALLING, callback=keypress, bouncetime=btime)
-    GPIO.add_event_detect(thekeys[3], GPIO.FALLING, callback=keypress, bouncetime=btime)
+    for pin in thekeys:
+        cb = lgpio.callback(gpio_handle, pin, lgpio.FALLING_EDGE, gpio_callback_wrapper)
+        gpio_callbacks.append(cb)
     return
 
 def removekeyevent(thekeys):
-    #   Remove keypress events
+    global gpio_callbacks
     logging.debug("Remove key events")
-    GPIO.remove_event_detect(thekeys[0])
-    GPIO.remove_event_detect(thekeys[1])
-    GPIO.remove_event_detect(thekeys[2])
-    GPIO.remove_event_detect(thekeys[3])
+    for cb in gpio_callbacks:
+        cb.cancel()
+    gpio_callbacks = []
     return
 
 def keypress(channel):
@@ -567,6 +560,7 @@ def keypress(channel):
         button_pressed = 1
         fiat_list = currencycycle(config["ticker"]["fiatcurrency"])
         config["ticker"]["fiatcurrency"] = ",".join(fiat_list)
+        logging.debug(f"DEBUG BTN4: crypto={config['ticker']['currency']}, fiat={config['ticker']['fiatcurrency']}")
         lastcoinfetch = fullupdate(config, lastcoinfetch)
         configwrite(config)
         return
@@ -580,9 +574,14 @@ def configwrite(config):
     """
     with open(configfile, "w") as f:
         data = yaml.dump(config, f)
-    #   Reset button pressed state after config is written
     global button_pressed
     button_pressed = 0
+last_button_time = 0
+lastcoinfetch = 0
+gpio_handle = None
+gpio_callbacks = []
+GPIO_KEYS = [5, 6, 13, 19]
+pending_button = None
 
 def fullupdate(config, lastcoinfetch):
     """
@@ -640,7 +639,7 @@ def gettrending(config):
     return config
 
 def main():
-    GPIO.setmode(GPIO.BCM)
+    global pending_button
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--log", default="info", help="Set the log level (default: info)"
@@ -680,6 +679,10 @@ def main():
         while internet() == False:
             logging.info("Waiting for internet")
         while True:
+            if pending_button is not None:
+                action = pending_button
+                pending_button = None
+                keypress(action)
             if config["display"]["trendingmode"] == True:
                 # The hard-coded 7 is for the number of trending coins to show. Consider revising
                 if (
@@ -689,7 +692,11 @@ def main():
                     config["ticker"]["currency"] = staticcoins
                     config = gettrending(config)
             if (time.time() - lastcoinfetch > updatefrequency) or (datapulled == False):
+                logging.debug("Auto-cycle check: elapsed=%d, freq=%d, datapulled=%s", time.time() - lastcoinfetch, updatefrequency, datapulled)
+                with open(configfile) as f:
+                    config = yaml.load(f, Loader=yaml.FullLoader)
                 if config["display"]["cycle"] == True and (datapulled == True):
+                    logging.debug(f"DEBUG AUTO before: crypto={config['ticker']['currency']}, fiat={config['ticker']['fiatcurrency']}")
                     crypto_list = currencycycle(config["ticker"]["currency"])
                     fiat_list = currencycycle(config["ticker"]["fiatcurrency"])
                     config["ticker"]["currency"] = ",".join(crypto_list)
@@ -697,7 +704,8 @@ def main():
                         config["display"]["cyclefiat"] is True
                     ):
                         config["ticker"]["fiatcurrency"] = ",".join(fiat_list)
-                    # configwrite(config)
+                    configwrite(config)
+                    logging.debug(f"DEBUG AUTO after: crypto={config['ticker']['currency']}, fiat={config['ticker']['fiatcurrency']}")
                 lastcoinfetch = fullupdate(config, lastcoinfetch)
                 datapulled = True
             #           Reduces CPU load during that while loop
@@ -715,7 +723,14 @@ def main():
         image = beanaproblem("Keyboard Interrupt")
         display_image(image)
         epd2in7.epdconfig.module_exit()
-        GPIO.cleanup()
+        global gpio_handle, gpio_callbacks
+        for cb in gpio_callbacks:
+            cb.cancel()
+        gpio_callbacks = []
+        if gpio_handle:
+            for pin in GPIO_KEYS:
+                lgpio.gpio_free(gpio_handle, pin)
+            lgpio.gpiochip_close(gpio_handle)
         exit()
 
 if __name__ == "__main__":

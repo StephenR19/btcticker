@@ -19,6 +19,31 @@ It also is set up to work for the V1 Waveshare 2.7in ePaper. If you are using V2
 
 If you are running the Pi headless, connect to your Raspberry Pi using `ssh`.
 
+## Debian 12 / Raspberry Pi OS Bookworm Notes
+
+If running Debian 12 or Raspberry Pi OS Bookworm (or later), the following changes are recommended:
+
+### 1. Virtual Environment (Recommended)
+
+Python 3.11+ on Debian enforces PEP 668 which prevents system-wide pip installs. Use a virtual environment:
+
+```bash
+cd btcticker
+python3 -m venv venv --system-site-packages
+source venv/bin/activate
+```
+
+### 2. System Packages
+
+```
+sudo apt-get update
+sudo apt-get install -y python3-pip python3-venv git libopenjp2-7 python3-pil python3-numpy python3-matplotlib python3-lgpio
+```
+
+Note: `python3-lgpio` is the modern GPIO library (replacing RPi.GPIO for Pi 5 and newer kernels).
+
+## Raspberry Pi OS / Older Systems
+
 Connect to your ticker over ssh and update and install necessary packages 
 ```
 sudo apt-get update
@@ -48,11 +73,37 @@ rm -rf ~/e-Paper
 ```
 Install the required Python3 modules
 ```
+# If using virtual environment (recommended for Debian 12+):
+source venv/bin/activate
+python3 -m pip install -r requirements.txt
+
+# Or system-wide (older systems only):
 python3 -m pip install -r requirements.txt
 ```
 
 ## Add Autostart
 
+Using virtual environment (Debian 12+):
+```
+cat <<EOF | sudo tee /etc/systemd/system/btcticker.service
+[Unit]
+Description=btcticker
+After=network.target
+
+[Service]
+ExecStart=/home/pi/btcticker/venv/bin/python3 -u /home/pi/btcticker/btcticker.py
+WorkingDirectory=/home/pi/btcticker/
+StandardOutput=inherit
+StandardError=inherit
+Restart=always
+User=pi
+
+[Install]
+WantedBy=multi-user.target
+EOF
+```
+
+Or for older systems without venv:
 ```
 cat <<EOF | sudo tee /etc/systemd/system/btcticker.service
 [Unit]
@@ -90,7 +141,7 @@ Here's what each of the buttons do:
 - Button 3: Invert Display
 - Button 4: Cycle through the fiat currencies listed in config.yaml
 
-Update frequency can be changed in the configuration file (default is 300 seconds).
+Update frequency can be changed in the configuration file (default is 600 seconds).
 
 # Configuration via config file
 
