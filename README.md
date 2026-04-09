@@ -141,7 +141,7 @@ Here's what each of the buttons do:
 - Button 3: Invert Display
 - Button 4: Cycle through the fiat currencies listed in config.yaml
 
-Update frequency can be changed in the configuration file (default is 300 seconds).
+Update frequency can be changed in the configuration file (default is 600 seconds).
 
 # Configuration via config file
 
