@@ -28,6 +28,7 @@ font_date = ImageFont.truetype(os.path.join(fontdir,'PixelSplitter-Bold.ttf'),11
 gpio_handle = None
 gpio_callbacks = []
 last_button_time = 0
+pending_button = None
 
 def internet(host="8.8.8.8", port=53, timeout=3):
     """
@@ -311,57 +312,19 @@ def main():
         lgpio.gpio_claim_input(gpio_handle, key3, lgpio.SET_PULL_UP)
         lgpio.gpio_claim_input(gpio_handle, key4, lgpio.SET_PULL_UP)
 
-        def key1_callback(chip, gpio, level, tick):
-            nonlocal crypto_list, CURRENCY
-            global last_button_time
+        def button_callback(chip, gpio, level, tick):
+            global last_button_time, pending_button
             now = time.time()
             if now - last_button_time < 0.5:
                 return
             last_button_time = now
-            logging.info('Cycle currencies')
-            crypto_list = currencycycle(crypto_list)
-            CURRENCY=crypto_list[0]
-            logging.info(CURRENCY)
-            fullupdate()
-
-        def key2_callback(chip, gpio, level, tick):
-            global last_button_time
-            now = time.time()
-            if now - last_button_time < 0.5:
-                return
-            last_button_time = now
-            logging.info('Rotate - 90')
-            config['display']['orientation'] = (config['display']['orientation']+90) % 360
-            fullupdate()
-
-        def key3_callback(chip, gpio, level, tick):
-            global last_button_time
-            now = time.time()
-            if now - last_button_time < 0.5:
-                return
-            last_button_time = now
-            logging.info('Invert Display')
-            config['display']['inverted'] = not config['display']['inverted']
-            fullupdate()
-
-        def key4_callback(chip, gpio, level, tick):
-            nonlocal fiat_list, FIAT
-            global last_button_time
-            now = time.time()
-            if now - last_button_time < 0.5:
-                return
-            last_button_time = now
-            logging.info('Cycle fiat')
-            fiat_list = currencycycle(fiat_list)
-            FIAT=fiat_list[0]
-            logging.info(FIAT)
-            fullupdate()
+            pending_button = gpio
 
         gpio_callbacks = [
-            lgpio.callback(gpio_handle, key1, lgpio.FALLING_EDGE, key1_callback),
-            lgpio.callback(gpio_handle, key2, lgpio.FALLING_EDGE, key2_callback),
-            lgpio.callback(gpio_handle, key3, lgpio.FALLING_EDGE, key3_callback),
-            lgpio.callback(gpio_handle, key4, lgpio.FALLING_EDGE, key4_callback),
+            lgpio.callback(gpio_handle, key1, lgpio.FALLING_EDGE, button_callback),
+            lgpio.callback(gpio_handle, key2, lgpio.FALLING_EDGE, button_callback),
+            lgpio.callback(gpio_handle, key3, lgpio.FALLING_EDGE, button_callback),
+            lgpio.callback(gpio_handle, key4, lgpio.FALLING_EDGE, button_callback),
         ]
 
 
@@ -373,13 +336,40 @@ def main():
         while True:
 
             if internet():
+                if pending_button is not None:
+                    action = pending_button
+                    pending_button = None
+                    if action == key1:
+                        logging.info('Cycle currencies')
+                        crypto_list = currencycycle(crypto_list)
+                        CURRENCY=crypto_list[0]
+                        logging.info(CURRENCY)
+                        lastcoinfetch=fullupdate()
+                        configwrite()
+                    elif action == key2:
+                        logging.info('Rotate - 90')
+                        config['display']['orientation'] = (config['display']['orientation']+90) % 360
+                        lastcoinfetch=fullupdate()
+                        configwrite()
+                    elif action == key3:
+                        logging.info('Invert Display')
+                        config['display']['inverted'] = not config['display']['inverted']
+                        lastcoinfetch=fullupdate()
+                        configwrite()
+                    elif action == key4:
+                        logging.info('Cycle fiat')
+                        fiat_list = currencycycle(fiat_list)
+                        FIAT=fiat_list[0]
+                        logging.info(FIAT)
+                        lastcoinfetch=fullupdate()
+                        configwrite()
+
                 if (time.time() - lastcoinfetch > float(config['ticker']['updatefrequency'])) or (datapulled==False):
                     if config['display']['cycle']==True:
                         crypto_list = currencycycle(crypto_list)
                         CURRENCY=crypto_list[0]
                     lastcoinfetch=fullupdate()
                     datapulled = True
-                    # Moved due to suspicion that button pressing was corrupting config file
                     configwrite()
 
             time.sleep(0.1)

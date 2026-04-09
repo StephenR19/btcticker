@@ -510,12 +510,12 @@ def initkeys():
     return GPIO_KEYS
 
 def gpio_callback_wrapper(chip, gpio, level, tick):
-    global last_button_time
+    global last_button_time, pending_button
     now = time.time()
     if now - last_button_time < 0.5:
         return
     last_button_time = now
-    keypress(gpio)
+    pending_button = gpio
 
 def addkeyevent(thekeys):
     global gpio_handle, gpio_callbacks
@@ -585,6 +585,7 @@ last_button_time = 0
 gpio_handle = None
 gpio_callbacks = []
 GPIO_KEYS = [5, 6, 13, 19]
+pending_button = None
 
 def fullupdate(config, lastcoinfetch):
     """
@@ -681,6 +682,10 @@ def main():
         while internet() == False:
             logging.info("Waiting for internet")
         while True:
+            if pending_button is not None:
+                action = pending_button
+                pending_button = None
+                keypress(action)
             if config["display"]["trendingmode"] == True:
                 # The hard-coded 7 is for the number of trending coins to show. Consider revising
                 if (
