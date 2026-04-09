@@ -300,7 +300,7 @@ def main():
         logging.info(CURRENCY)
         logging.info(FIAT)
 
-        global gpio_handle, gpio_callbacks, last_button_time
+        global gpio_handle, gpio_callbacks, last_button_time, pending_button
         key1 = 5
         key2 = 6
         key3 = 13

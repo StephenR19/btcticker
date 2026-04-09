@@ -643,6 +643,7 @@ def gettrending(config):
     return config
 
 def main():
+    global pending_button
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--log", default="info", help="Set the log level (default: info)"
