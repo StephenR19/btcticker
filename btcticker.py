@@ -506,7 +506,7 @@ def initkeys():
     logging.debug("Setup GPIO keys")
     gpio_handle = lgpio.gpiochip_open(0)
     for pin in GPIO_KEYS:
-        lgpio.gpio_claim_input(gpio_handle, pin, lgpio.SET_PULL_UP)
+        lgpio.gpio_claim_alert(gpio_handle, pin, lgpio.FALLING_EDGE, lgpio.SET_PULL_UP)
     return GPIO_KEYS
 
 def gpio_callback_wrapper(chip, gpio, level, tick):

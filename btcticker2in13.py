@@ -307,10 +307,10 @@ def main():
         key4 = 19
 
         gpio_handle = lgpio.gpiochip_open(0)
-        lgpio.gpio_claim_input(gpio_handle, key1, lgpio.SET_PULL_UP)
-        lgpio.gpio_claim_input(gpio_handle, key2, lgpio.SET_PULL_UP)
-        lgpio.gpio_claim_input(gpio_handle, key3, lgpio.SET_PULL_UP)
-        lgpio.gpio_claim_input(gpio_handle, key4, lgpio.SET_PULL_UP)
+        lgpio.gpio_claim_alert(gpio_handle, key1, lgpio.FALLING_EDGE, lgpio.SET_PULL_UP)
+        lgpio.gpio_claim_alert(gpio_handle, key2, lgpio.FALLING_EDGE, lgpio.SET_PULL_UP)
+        lgpio.gpio_claim_alert(gpio_handle, key3, lgpio.FALLING_EDGE, lgpio.SET_PULL_UP)
+        lgpio.gpio_claim_alert(gpio_handle, key4, lgpio.FALLING_EDGE, lgpio.SET_PULL_UP)
 
         def button_callback(chip, gpio, level, tick):
             global last_button_time, pending_button
