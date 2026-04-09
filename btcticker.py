@@ -702,7 +702,7 @@ def main():
                         config["display"]["cyclefiat"] is True
                     ):
                         config["ticker"]["fiatcurrency"] = ",".join(fiat_list)
-                    # configwrite(config)
+                    configwrite(config)
                 lastcoinfetch = fullupdate(config, lastcoinfetch)
                 datapulled = True
             #           Reduces CPU load during that while loop
