@@ -531,9 +531,10 @@ def removekeyevent(thekeys):
     return
 
 def keypress(channel):
-    global button_pressed
-    with open(configfile) as f:
-        config = yaml.load(f, Loader=yaml.FullLoader)
+    global button_pressed, config
+    if 'config' not in globals():
+        with open(configfile) as f:
+            config = yaml.load(f, Loader=yaml.FullLoader)
     lastcoinfetch = time.time()
     if channel == 5 and button_pressed == 0:
         logging.info("Cycle currencies")
