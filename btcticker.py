@@ -696,6 +696,8 @@ def main():
                     config = gettrending(config)
             if (time.time() - lastcoinfetch > updatefrequency) or (datapulled == False):
                 logging.debug("Auto-cycle check: elapsed=%d, freq=%d, datapulled=%s", time.time() - lastcoinfetch, updatefrequency, datapulled)
+                with open(configfile) as f:
+                    config = yaml.load(f, Loader=yaml.FullLoader)
                 if config["display"]["cycle"] == True and (datapulled == True):
                     logging.info(f"DEBUG AUTO before: crypto={config['ticker']['currency']}, fiat={config['ticker']['fiatcurrency']}")
                     crypto_list = currencycycle(config["ticker"]["currency"])
