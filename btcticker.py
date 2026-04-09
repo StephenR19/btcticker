@@ -580,7 +580,7 @@ def configwrite(config):
         data = yaml.dump(config, f)
     #   Reset button pressed state after config is written
     global button_pressed
-button_pressed = 0
+    button_pressed = 0
 last_button_time = 0
 gpio_handle = None
 gpio_callbacks = []

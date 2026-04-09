@@ -312,6 +312,7 @@ def main():
         lgpio.gpio_claim_input(gpio_handle, key4, lgpio.SET_PULL_UP)
 
         def key1_callback(chip, gpio, level, tick):
+            nonlocal crypto_list, CURRENCY
             global last_button_time
             now = time.time()
             if now - last_button_time < 0.5:
@@ -344,6 +345,7 @@ def main():
             fullupdate()
 
         def key4_callback(chip, gpio, level, tick):
+            nonlocal fiat_list, FIAT
             global last_button_time
             now = time.time()
             if now - last_button_time < 0.5:
@@ -389,7 +391,6 @@ def main():
     except KeyboardInterrupt:    
         logging.info("ctrl + c:")
         epd2in13_V2.epdconfig.module_exit()
-        global gpio_handle, gpio_callbacks
         for cb in gpio_callbacks:
             cb.cancel()
         if gpio_handle:
