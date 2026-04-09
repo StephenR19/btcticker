@@ -37,7 +37,7 @@ source venv/bin/activate
 
 ```
 sudo apt-get update
-sudo apt-get install -y python3-pip python3-venv git libopenjp2-7 libatlas-base-dev python3-pil python3-numpy python3-matplotlib python3-lgpio
+sudo apt-get install -y python3-pip python3-venv git libopenjp2-7 python3-pil python3-numpy python3-matplotlib python3-lgpio
 ```
 
 Note: `python3-lgpio` is the modern GPIO library (replacing RPi.GPIO for Pi 5 and newer kernels).
