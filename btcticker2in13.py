@@ -318,14 +318,25 @@ def main():
             if now - last_button_time < 0.5:
                 return
             last_button_time = now
+            logging.debug("Button pressed: %d", gpio)
             pending_button = gpio
 
-        gpio_callbacks = [
-            lgpio.callback(gpio_handle, key1, lgpio.FALLING_EDGE, button_callback),
-            lgpio.callback(gpio_handle, key2, lgpio.FALLING_EDGE, button_callback),
-            lgpio.callback(gpio_handle, key3, lgpio.FALLING_EDGE, button_callback),
-            lgpio.callback(gpio_handle, key4, lgpio.FALLING_EDGE, button_callback),
-        ]
+        def addkeyevent():
+            global gpio_handle, gpio_callbacks
+            logging.debug("Add key events")
+            for pin in [key1, key2, key3, key4]:
+                cb = lgpio.callback(gpio_handle, pin, lgpio.FALLING_EDGE, button_callback)
+                gpio_callbacks.append(cb)
+
+        def removekeyevent():
+            global gpio_callbacks
+            logging.debug("Remove key events")
+            for cb in gpio_callbacks:
+                cb.cancel()
+            gpio_callbacks = []
+
+        gpio_callbacks = []
+        addkeyevent()
 
 
 #       Note that there has been no data pull yet
@@ -345,16 +356,22 @@ def main():
                         CURRENCY=crypto_list[0]
                         logging.info(CURRENCY)
                         lastcoinfetch=fullupdate()
+                        removekeyevent()
+                        addkeyevent()
                         configwrite()
                     elif action == key2:
                         logging.info('Rotate - 90')
                         config['display']['orientation'] = (config['display']['orientation']+90) % 360
                         lastcoinfetch=fullupdate()
+                        removekeyevent()
+                        addkeyevent()
                         configwrite()
                     elif action == key3:
                         logging.info('Invert Display')
                         config['display']['inverted'] = not config['display']['inverted']
                         lastcoinfetch=fullupdate()
+                        removekeyevent()
+                        addkeyevent()
                         configwrite()
                     elif action == key4:
                         logging.info('Cycle fiat')
@@ -362,6 +379,8 @@ def main():
                         FIAT=fiat_list[0]
                         logging.info(FIAT)
                         lastcoinfetch=fullupdate()
+                        removekeyevent()
+                        addkeyevent()
                         configwrite()
 
                 if (time.time() - lastcoinfetch > float(config['ticker']['updatefrequency'])) or (datapulled==False):
@@ -369,6 +388,8 @@ def main():
                         crypto_list = currencycycle(crypto_list)
                         CURRENCY=crypto_list[0]
                     lastcoinfetch=fullupdate()
+                    removekeyevent()
+                    addkeyevent()
                     datapulled = True
                     configwrite()
 

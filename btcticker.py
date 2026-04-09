@@ -515,6 +515,7 @@ def gpio_callback_wrapper(chip, gpio, level, tick):
     if now - last_button_time < 0.5:
         return
     last_button_time = now
+    logging.debug("Button pressed: %d", gpio)
     pending_button = gpio
 
 def addkeyevent(thekeys):
