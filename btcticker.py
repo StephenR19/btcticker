@@ -581,6 +581,8 @@ def configwrite(config):
         data = yaml.dump(config, f)
     global button_pressed
     button_pressed = 0
+last_button_time = 0
+lastcoinfetch = 0
 gpio_handle = None
 gpio_callbacks = []
 GPIO_KEYS = [5, 6, 13, 19]
